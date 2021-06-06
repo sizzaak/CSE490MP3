@@ -17,8 +17,8 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // ---------------
 
-const int MAZE_WIDTH = 19;
-const int MAZE_HEIGHT = 19;
+const int MAZE_WIDTH = 9;
+const int MAZE_HEIGHT = 9;
 const int MAZE_X_CENTER = MAZE_WIDTH / 2;
 const int MAZE_Y_CENTER = MAZE_HEIGHT / 2;
 
@@ -32,11 +32,14 @@ const int CELL_HEIGHT = (MAZE_BOTTOM - MAZE_TOP) / MAZE_HEIGHT;
 bool vertWalls[MAZE_WIDTH+1][MAZE_HEIGHT];
 bool horiWalls[MAZE_HEIGHT+1][MAZE_WIDTH];
 
+int playerX = MAZE_WIDTH / 2;
+int playerY = MAZE_HEIGHT / 2;
+
 void setup() {
   // The following OLED setup taken from the ssd1306_128x64_i2c library example
   // --------------------------------------------------------------------------
   Serial.begin(9600);
-  //while (!Serial);
+  while (!Serial);
   
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -46,12 +49,16 @@ void setup() {
   // --------------------------------------------------------------------------
   randomSeed(analogRead(1));
   generateMaze();
+  sendMaze();
 }
 
 void loop() {
   display.clearDisplay();
   drawMaze();
+  updatePlayerPosition();
+  drawPlayer();
   display.display();
+  delay(10);
 }
 
 void generateMaze() {
@@ -132,6 +139,38 @@ void generateMaze() {
   horiWalls[MAZE_Y_CENTER + 2][MAZE_X_CENTER] = false;
 }
 
+void sendMaze() {
+  Serial.print("MapData/WIDTH=");
+  Serial.print(MAZE_WIDTH);
+  Serial.print(",HEIGHT=");
+  Serial.print(MAZE_HEIGHT);
+  Serial.print("/");
+  for (int i = 0; i <= MAZE_WIDTH; i++) {
+    for (int j = 0; j < MAZE_HEIGHT; j++) {
+      Serial.print(vertWalls[i][j]);
+      if (j != MAZE_HEIGHT - 1) {
+        Serial.print("-");
+      }
+    }
+    if (i != MAZE_WIDTH) {
+      Serial.print(",");
+    }
+  }
+  Serial.print("/");
+  for (int i = 0; i <= MAZE_HEIGHT; i++) {
+    for (int j = 0; j < MAZE_WIDTH; j++) {
+      Serial.print(horiWalls[i][j]);
+      if (j != MAZE_WIDTH - 1) {
+        Serial.print("-");
+      }
+    }
+    if (i != MAZE_HEIGHT) {
+      Serial.print(",");
+    }
+  }
+  Serial.println();
+}
+
 void drawMaze() {
   // draw vertical walls
   for (int i = 0; i <= MAZE_WIDTH; i++) {
@@ -143,6 +182,7 @@ void drawMaze() {
       }
     }
   }
+  // draw horizontal walls
   for (int i = 0; i <= MAZE_HEIGHT; i++) {
     for (int j = 0; j < MAZE_WIDTH; j++) {
       if (horiWalls[i][j]) {
@@ -152,6 +192,26 @@ void drawMaze() {
       }
     }
   }
+}
+
+void updatePlayerPosition() {
+  if (Serial.available() > 0) {
+    String rcvdSerialData = Serial.readStringUntil('\n');
+
+    // Convert to c string and use sscanf to parse values in format x,y
+    char rcvdCstring[rcvdSerialData.length() + 1];
+    strcpy(rcvdCstring, rcvdSerialData.c_str());
+    int x, y;
+    sscanf(rcvdCstring, "%d,%d", &x,&y);
+    playerX = x;
+    playerY = y;
+  }
+}
+
+void drawPlayer() {
+  int x = MAZE_LEFT + playerX * CELL_WIDTH;
+  int y = MAZE_TOP + playerY * CELL_HEIGHT;
+  display.fillRect(x, y, CELL_WIDTH, CELL_HEIGHT, SSD1306_WHITE);
 }
 
 // The wall is valid if and only if it does not make either bordering cell surrounded by

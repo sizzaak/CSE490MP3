@@ -1,20 +1,10 @@
   
-// This is a basic web serial template for p5.js. Please see:
-// https://makeabilitylab.github.io/physcomp/communication/p5js-serial
-// 
-// By Jon E. Froehlich
-// @jonfroehlich
-// http://makeabilitylab.io/
-//
-
 
 let pHtmlMsg;
 let serialOptions = { baudRate: 115200  };
 let serial;
 let analogVal = 0;
 
-let boxesPos = [];
-const BOXES_COUNT = 10;
 const MOVE_CHANCE = 0.01;
 const Z_MIN = -400;
 const Z_MAX = 200;
@@ -25,8 +15,6 @@ let mazeHeight;
 let vertWalls = [];
 let horiWalls = [];
 
-let playerX;
-let playerY;
 let oldPositionString = "99,99";
 
 let cameraX = 0;
@@ -73,15 +61,14 @@ function setup() {
   // Add in a lil <p> element to provide messages. This is optional
   pHtmlMsg = createP("Click anywhere on this page to open the serial connection dialog");
 
-  playerX = width / 2;
-  playerY = height / 2;
-  requestPointerLock();
   perspective(PI / 3.0, width / height, 1, 1000);
 }
 
 function draw() {
   background(220);
   //requestPointerLock();
+
+  // draw floor and ceiling
   noStroke();
   push();
   texture(dungeonFloorImg);
@@ -93,9 +80,9 @@ function draw() {
 
   texture(dungeonWallImg);
   
-  // draw the player (TEMPORARY)
+  // draw central sphere (why? cause why not)
   push();
-  translate(playerX, playerY);
+  translate(width / 2, height / 2);
   sphere(20);
   pop();
 
@@ -136,86 +123,20 @@ function draw() {
   let forwardX = centerX - cameraX;
   let forwardY = centerY - cameraY;
 
-  if (keyIsDown(65)) { // a - x-
-    //playerX -= 5;
-    //cameraX -= CAM_SCALE;
-    playerMove(forwardY * deltaPos, -forwardX * deltaPos)
-    //cameraX += forwardY * deltaPos;
-    //cameraY -= forwardX * deltaPos;
+  if (keyIsDown(65)) { // a - left
+    playerMove(forwardY * deltaPos, -forwardX * deltaPos);
   }
 
-  if (keyIsDown(68)) { // d - x+
-    //playerX += 5;
-    //cameraX += CAM_SCALE;
-    playerMove(-forwardY * deltaPos, forwardX * deltaPos)
-    //cameraX -= forwardY * deltaPos;
-    //cameraY += forwardX * deltaPos;
+  if (keyIsDown(68)) { // d - right
+    playerMove(-forwardY * deltaPos, forwardX * deltaPos);
   }
 
-  if (keyIsDown(87)) { // w - y+
-    //playerY -= 5;
-    //cameraY += CAM_SCALE;
-    playerMove(forwardX * deltaPos, forwardY * deltaPos)
-    //cameraX += forwardX * deltaPos;
-    //cameraY += forwardY * deltaPos;
+  if (keyIsDown(87)) { // w - forward
+    playerMove(forwardX * deltaPos, forwardY * deltaPos);
   }
 
-  if (keyIsDown(83)) { // s - y-
-    //playerY += 5;
-    //cameraY -= CAM_SCALE;
-    playerMove(-forwardX * deltaPos, -forwardY * deltaPos)
-    //cameraX -= forwardX * deltaPos;
-    //cameraY -= forwardY * deltaPos;
-  }
-
-  if (keyIsDown(38)) { // up - z+
-    //cameraZ += CAM_SCALE;
-    thetaVert += deltaTheta;
-  } else if (keyIsDown(40)) { // down - z-
-    //cameraZ -= CAM_SCALE;
-    thetaVert -= deltaTheta;
-  }
-
-  if (keyIsDown(82)) { // r - centerX+
-    centerX += CAM_SCALE;
-  } else if (keyIsDown(70)) { // f - centerX-
-    centerX -= CAM_SCALE;
-  }
-
-  if (keyIsDown(84)) { // t - centerY+
-    centerY += CAM_SCALE;
-  } else if (keyIsDown(71)) { // g - centerY-
-    centerY -= CAM_SCALE;
-  }
-
-  if (keyIsDown(89)) { // y - centerZ+
-    centerZ += CAM_SCALE;
-  } else if (keyIsDown(72)) { // z - centerZ-
-    centerZ -= CAM_SCALE;
-  }
-
-  if (keyIsDown(90)) {
-    thetaHori += deltaTheta;
-  } else if (keyIsDown(88)) {
-    thetaHori -= deltaTheta;
-  }
-
-  if (keyIsDown(73)) { // i - upX
-    upX = 1;
-    upY = 0;
-    upZ = 0;
-  } else if (keyIsDown(79)) { // o - upY
-    upX = 0;
-    upY = 1;
-    upZ = 0;
-  } else if (keyIsDown(80)) { // p - upZ
-    upX = 0;
-    upY = 0;
-    upZ = 1;
-  } else if (keyIsDown(76)) { // l - upZ inverse?
-    upX = 0;
-    upY = 0;
-    upZ = -1;
+  if (keyIsDown(83)) { // s - backward
+    playerMove(-forwardX * deltaPos, -forwardY * deltaPos);
   }
 
   thetaHori += movedX * deltaTheta;
@@ -230,26 +151,9 @@ function draw() {
       oldPositionString = positionString;
     }
   }
-  /*
-  // draw horizontal walls
-  for (let i = 0; i <= mazeHeight; i++) {
-    for (let j = 0; j < mazeWidth; j++) {
-      if (horiWalls[i][j]) {
-        let x = MAZE_LEFT + j * CELL_WIDTH;
-        let y = MAZE_TOP + i * cellHeight;
-        display.drawFastHLine(x, y, CELL_WIDTH+1, SSD1306_WHITE);
-      }
-    }
-  }
-  */
-
-  // Set camera z position based on arduino input
-  //let zpos = map(analogVal, 0, 1, 500, 50);
+  
   setCenter(thetaHori, thetaVert);
   camera(cameraX, cameraY, cameraZ, centerX, centerY, centerZ, upX, upY, upZ);
-  if (frameCount % 100 == 0) {
-    //console.log(cameraX, cameraY, cameraZ, centerX, centerY, centerZ, upX, upY, upZ, thetaHori, thetaVert);
-  }
 }
 
 /**
@@ -327,6 +231,11 @@ function mouseClicked() {
   }
 }
 
+/**
+ * Adjust camera position by the given amounts if no collision is detected
+ * @param {number} xChange 
+ * @param {number} yChange 
+ */
 function playerMove(xChange, yChange) {
   let cellWidth = width / mazeWidth;
   let cellHeight = height / mazeHeight;
@@ -340,13 +249,11 @@ function playerMove(xChange, yChange) {
 
   if (newCellX != oldCellX) { // check for vertical wall collision
     if (parseInt(vertWalls[max(oldCellX, newCellX)][oldCellY])) {
-      //console.log(oldCellX, oldCellY, newCellX, newCellY);
       return;
     }
   }
   if (newCellY != oldCellY) { // check for horizontal wall collision
     if (parseInt(horiWalls[max(oldCellY, newCellY)][oldCellX])) {
-      //console.log(oldCellX, oldCellY, newCellX, newCellY);
       return;
     }
   }
@@ -355,6 +262,11 @@ function playerMove(xChange, yChange) {
   cameraY = potentialY;
 }
 
+/**
+ * Orient the camera based on given angles
+ * @param {number} angleHori 
+ * @param {number} angleVert 
+ */
 function setCenter(angleHori, angleVert) {
   centerX = cameraX + CENTER_DISTANCE * cos(angleHori) * cos(angleVert);
   centerY = cameraY + CENTER_DISTANCE * sin(angleHori) * cos(angleVert);

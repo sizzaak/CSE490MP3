@@ -17,8 +17,8 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // ---------------
 
-const int MAZE_WIDTH = 9;
-const int MAZE_HEIGHT = 9;
+const int MAZE_WIDTH = 15;
+const int MAZE_HEIGHT = 15;
 const int MAZE_X_CENTER = MAZE_WIDTH / 2;
 const int MAZE_Y_CENTER = MAZE_HEIGHT / 2;
 
@@ -211,7 +211,7 @@ void updatePlayerPosition() {
 void drawPlayer() {
   int x = MAZE_LEFT + playerX * CELL_WIDTH;
   int y = MAZE_TOP + playerY * CELL_HEIGHT;
-  display.fillRect(x, y, CELL_WIDTH, CELL_HEIGHT, SSD1306_WHITE);
+  display.fillCircle(x + CELL_WIDTH / 2, y + CELL_HEIGHT / 2, CELL_WIDTH / 2, SSD1306_WHITE);
 }
 
 // The wall is valid if and only if it does not make either bordering cell surrounded by

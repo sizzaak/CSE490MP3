@@ -8,7 +8,7 @@ let analogVal = 0;
 const MOVE_CHANCE = 0.01;
 const Z_MIN = -400;
 const Z_MAX = 200;
-const WALL_HEIGHT = 50;
+const WALL_HEIGHT = 25;
 
 const PUZZLE_COUNT = 3;
 
@@ -19,14 +19,14 @@ let horiWalls = [];
 let cellWidth;
 let cellHeight;
 
-let oldPositionString = "99,99";
+let oldSerialString = "99,99,0,0,0";
 
 let cameraX = 0;
 let cameraY = 0;
-let cameraZ = 30;
+let cameraZ = 15;
 let centerX = 0;
 let centerY = 50;
-let centerZ = 30;
+let centerZ = 25;
 let upX = 0;
 let upY = 0;
 let upZ = -1;
@@ -35,6 +35,8 @@ const CAM_SCALE = 2;
 const CENTER_DISTANCE = 50;
 const COLLISION_STRENGTH = 1;
 
+let playerCellX;
+let playerCellY;
 let thetaHori = 0;
 let thetaVert = 0;
 
@@ -46,11 +48,12 @@ let dungeonFloorImg;
 let againstRockImg, againstPaperImg, againstScissorsImg;
 let correctGreyImg, correctGreenImg, completeImg;
 
-
+const POSE_TIME = 20;
 let predictions = [];
 let video;
 
 let handpose;
+let currentPose = "noPose";
 
 let puzzles = [];
 
@@ -66,7 +69,8 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(1000, 1000, WEBGL);
+  createCanvas(500, 500, WEBGL);
+  frameRate(24);
 
   // Setup Web Serial using serial.js
   serial = new Serial();
@@ -82,11 +86,11 @@ function setup() {
   pHtmlMsg = createP("Click anywhere on this page to open the serial connection dialog");
 
   for (let i = 0; i < PUZZLE_COUNT; i++) {
-    puzzles[i] = {row: 6, column: 6, direction: "up", state: "rock", leftToBeat: 1};
+    puzzles[i] = {row: 6, column: 6, direction: 1, state: "rock", leftToBeat: 1, counter: 0};
   }
-  puzzles[0] = {row: 8, column: 6, direction: "down", state: "rock", leftToBeat: 1};
-  puzzles[1] = {row: 6, column: 6, direction: "left", state: "paper", leftToBeat: 1};
-  puzzles[2] = {row: 6, column: 8, direction: "right", state: "scissors", leftToBeat: 1};
+  puzzles[0] = {row: 8, column: 6, direction: 3, state: "rock", leftToBeat: 1, counter: 0};
+  puzzles[1] = {row: 6, column: 6, direction: 4, state: "paper", leftToBeat: 1, counter: 0};
+  puzzles[2] = {row: 6, column: 8, direction: 2, state: "scissors", leftToBeat: 1, counter: 0};
 
   perspective(PI / 3.0, width / height, 1, 1000);
 
@@ -100,7 +104,7 @@ function setup() {
 
 function draw() {
   background(220);
-  //requestPointerLock();
+  requestPointerLock();
 
   // draw floor and ceiling
   noStroke();
@@ -117,13 +121,6 @@ function draw() {
   drawPuzzle(puzzles[0]);
   drawPuzzle(puzzles[1]);
   drawPuzzle(puzzles[2]);
-  
-  // draw central sphere (why? cause why not)
-  push();
-  texture(againstRockImg);
-  translate(width / 2, height / 2, WALL_HEIGHT / 2);
-  box(cellWidth / 4, cellWidth / 10, WALL_HEIGHT / 2);
-  pop();
 
   // draw vertical walls
   for (let i = 0; i <= mazeWidth; i++) {
@@ -180,20 +177,21 @@ function draw() {
   if (!(thetaVert - movedY * deltaTheta > 1.5 && movedY < 0) && !(thetaVert - movedY * deltaTheta < -1.5 && movedY > 0))
     thetaVert -= movedY * deltaTheta;
 
-  let playerCellX = floor((cameraX + width / 2) / cellWidth);
-  let playerCellY = floor((cameraY + height / 2) / cellHeight);
+  playerCellX = floor((cameraX + width / 2) / cellWidth);
+  playerCellY = floor((cameraY + height / 2) / cellHeight);
+  
   if (serial.isOpen()) {
-    let positionString = playerCellX + "," + playerCellY;
-    if (positionString != oldPositionString) {
-      //console.log(positionString);
-      serial.writeLine(positionString);
-      oldPositionString = positionString;
+    let puzzlesString = (puzzles[0].state == "complete" ? 1 : 0) + "," + (puzzles[1].state == "complete" ? 1 : 0) + "," + (puzzles[2].state == "complete" ? 1 : 0);
+    let serialString = playerCellX + "," + playerCellY + "," + puzzlesString;
+    if (serialString != oldSerialString) {
+      serial.writeLine(serialString);
+      oldSerialString = serialString;
     }
   }
   
   setCenter(thetaHori, thetaVert);
 
-  let currentPose = "No pose";
+  currentPose = "No pose";
   if (predictions.length > 0) {
     let annotations = predictions[0]["annotations"];
     let thumbtip = annotations["thumb"][3];
@@ -211,7 +209,7 @@ function draw() {
     let ismiddleextended = (distance3d(middletip, palmbase) > 1.2 * distance3d(middleknuckle, palmbase));
     let isringextended = (distance3d(ringtip, palmbase) > 1.2 * distance3d(ringknuckle, palmbase));
     let ispinkyextended = (distance3d(pinkytip, palmbase) > 1.2 * distance3d(pinkyknuckle, palmbase));
-    console.log(ispointerextended + " " + ismiddleextended + " " + isringextended + " " + ispinkyextended);
+    //console.log(ispointerextended + " " + ismiddleextended + " " + isringextended + " " + ispinkyextended);
     
     if (ispointerextended && ismiddleextended && !isringextended && !ispinkyextended) {
       currentPose = "Scissors!";
@@ -266,7 +264,7 @@ function onSerialConnectionClosed(eventSender) {
  */
 function onSerialDataReceived(eventSender, newData) {
   console.log("onSerialDataReceived", newData);
-  pHtmlMsg.html("onSerialDataReceived: " + newData);
+  pHtmlMsg.html("onSerialDataReceived");
   analogVal = newData;
   let dataSplit = newData.split("/");
   console.log(dataSplit);
@@ -286,6 +284,22 @@ function onSerialDataReceived(eventSender, newData) {
     for (let i = 0; i <= mazeHeight; i++) {
       horiWalls[i] = horiWallsString[i].split("-");
     }
+
+    // parse puzzles
+    let puzzleString = dataSplit[4].split(",");
+    for (let i = 0; i < PUZZLE_COUNT; i++) {
+      let puzzleData = puzzleString[i].split("-");
+      puzzles[i].column = puzzleData[0];
+      puzzles[i].row = puzzleData[1];
+      puzzles[i].direction = puzzleData[2];
+    }
+
+    // reset game state
+    puzzles[0].state = "rock";
+    puzzles[1].state = "paper";
+    puzzles[2].state = "scissors";
+    cameraX = 0;
+    cameraY = 0;
 
     cellWidth = width / mazeWidth;
     cellHeight = height / mazeHeight;
@@ -350,31 +364,47 @@ function drawPuzzle(puzzle) {
   push();
   if (puzzle.state == "rock") {
     texture(againstRockImg);
+    checkPuzzlePose(puzzle, "Paper!");
   } else if (puzzle.state == "scissors") {
-    texture (againstScissorsImg);
+    texture(againstScissorsImg);
+    checkPuzzlePose(puzzle, "Rock!");
   } else if (puzzle.state == "paper") {
-    texture (againstPaperImg);
+    texture(againstPaperImg);
+    checkPuzzlePose(puzzle, "Scissors!");
+  } else if (puzzle.state == "complete") {
+    texture(completeImg);
   }
 
   translate(puzzle.column * cellWidth + cellWidth / 2, puzzle.row * cellHeight + cellHeight / 2, WALL_HEIGHT / 2);
-  if (puzzle.direction == "up") {
+  if (puzzle.direction == 1) {
     translate(0, -cellHeight / 2 + cellHeight / 20 + 1, 0);
     rotateY(radians(90));
     box(WALL_HEIGHT / 2, cellHeight / 10, cellHeight / 4);
-  } else if (puzzle.direction == "down") {
+  } else if (puzzle.direction == 3) {
     translate(0, cellHeight / 2 - cellHeight / 20 - 1, 0);
     rotateY(radians(180));
     box(cellHeight / 4, cellHeight / 10, WALL_HEIGHT / 2);
-  } else if (puzzle.direction == "left") {
+  } else if (puzzle.direction == 4) {
     translate(-cellWidth / 2 + cellWidth / 20 + 1, 0, 0);
     rotateX(radians(180));
     box(cellWidth / 10, cellWidth / 4, WALL_HEIGHT / 2);
-  } else if (puzzle.direction == "right") {
+  } else if (puzzle.direction == 2) {
     translate(cellWidth / 2 - cellWidth / 20 - 1, 0, 0);
     rotateX(radians(270));
     box(cellWidth / 10, WALL_HEIGHT / 2, cellWidth / 4);
   }
   pop();
+}
+
+function checkPuzzlePose(puzzle, targetPose) {
+  if (currentPose == targetPose && puzzle.column == playerCellX && puzzle.row == playerCellY) {
+    puzzle.counter++;
+    if (puzzle.counter >= POSE_TIME) {
+      puzzle.state = "complete";
+    }
+  } else {
+    puzzle.counter = 0;
+  }
 }
 
 function distance3d(point1, point2) {
